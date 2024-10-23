@@ -25,7 +25,8 @@ using System.Threading;
 using System.Net.Mail;
 using System.Net;
 using System.IO;
-
+using System.Configuration;
+using System.Data.SqlClient;
 
 namespace LegerReportServices
 {
@@ -41,11 +42,12 @@ namespace LegerReportServices
 
         protected override void OnStart(string[] args)
         {
-            EventLog.WriteEntry("Testing!!!!");
+            EventLog.WriteEntry("Ledger ON Start !!!!");
+            int interval = Convert.ToInt32(ConfigurationManager.AppSettings["TimerInterval"]); // In minutes
             StatusRecheckTimer = new System.Timers.Timer();
             StatusRecheckTimer.Elapsed += new System.Timers.ElapsedEventHandler(timer1_Tick);
-            //StatusRecheckTimer.Interval = 300000; //10000 =  10sec
-          //  StatusRecheckTimer.Interval = Convert.ToDouble(ConfigurationManager.AppSettings["MSSLongRechecktime"]);
+            StatusRecheckTimer.Interval = 60000; //10000 =  10sec
+            StatusRecheckTimer.Interval = interval * 10000; //10000 =  10sec
             StatusRecheckTimer.Enabled = true;
             StatusRecheckTimer.AutoReset = true;
             StatusRecheckTimer.Start();
@@ -56,7 +58,34 @@ namespace LegerReportServices
         }
         public void timer1_Tick(object sender, System.Timers.ElapsedEventArgs args)
         {
-          
+            string MISReport = _fetchDataFrmDatabase.GetparameterDefaultvalue("MISLedgerReportActive");
+            EventLog.WriteEntry(" Get Ledger MIS report!!!");
+            if (MISReport == "1")
+            {
+                EventLog.WriteEntry("Active Ledger MIS report!!!!");
+                string MISLedgerReportHourOfexec = _fetchDataFrmDatabase.GetparameterDefaultvalue("MISLedgerReportHourOfexec");
+                if (DateTime.Now.Hour >= Convert.ToInt32(MISLedgerReportHourOfexec))
+                {
+                    EventLog.WriteEntry(" Match time!!!!");
+                    SMSBO _objCheckSMS = new SMSBO();
+                    _objCheckSMS = _fetchDataFrmDatabase.GETsmsExecutionDetails("GETLEDGERMIS");
+                    if (_objCheckSMS.IsSMSExecuted == 0)
+                    {
+                        EventLog.WriteEntry(" is executed!!!!");
+                        testing();
+                        _fetchDataFrmDatabase.SaveExecutionDetails(1, "SAVELEDGERMIS");
+                    }
+                    else
+                    {
+                        EventLog.WriteEntry(" not executed!!!!");
+                    }
+                }
+                else
+                {
+                    EventLog.WriteEntry(" not match Match time!!!!");
+                }
+
+            }
             EventLog.WriteEntry("Fetch Active User List!!!!");
             
         }
@@ -438,5 +467,8 @@ namespace LegerReportServices
                 Console.WriteLine($"Deleted: {file}");
             }
         }
+
+
+        
     }
 }
